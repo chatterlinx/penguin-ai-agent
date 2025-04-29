@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Talk to Your AI Agent</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 2em;
+      color: #333;
+    }
+    .chat-box {
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 1em;
+      height: 300px;
+      overflow-y: auto;
+      margin-bottom: 1em;
+    }
+    .message {
+      margin: 0.5em 0;
+    }
+    .user {
+      color: blue;
+    }
+    .agent {
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <h2>Talk to Your AI Agent</h2>
+  <div id="chat" class="chat-box"></div>
+  <input type="text" id="input" placeholder="Type your message..." style="width: 80%" />
+  <button onclick="sendMessage()">Send</button>
+
+  <script>
+    async function sendMessage() {
+      const input = document.getElementById('input');
+      const chat = document.getElementById('chat');
+      const userText = input.value;
+      if (!userText.trim()) return;
+
+      const userDiv = document.createElement('div');
+      userDiv.className = 'message user';
+      userDiv.textContent = `You: ${userText}`;
+      chat.appendChild(userDiv);
+      input.value = '';
+
+      try {
+        const response = await fetch('http://localhost:3000', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: userText })
+        });
+        const data = await response.json();
+        const agentDiv = document.createElement('div');
+        agentDiv.className = 'message agent';
+        agentDiv.textContent = `Agent: ${data.reply}`;
+        chat.appendChild(agentDiv);
+        chat.scrollTop = chat.scrollHeight;
+      } catch (error) {
+        const errDiv = document.createElement('div');
+        errDiv.className = 'message agent';
+        errDiv.textContent = 'Agent: Error contacting agent.';
+        chat.appendChild(errDiv);
+      }
+    }
+  </script>
+</body>
+</html>
+
