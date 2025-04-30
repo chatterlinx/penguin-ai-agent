@@ -1,22 +1,10 @@
 {
-  "name": "agent-app2",
+  "name": "penguin-ai-agent",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/chatterlinx/penguin-ai-agent.git"
-  },
-  "bugs": {
-    "url": "https://github.com/chatterlinx/penguin-ai-agent/issues"
-  },
-  "homepage": "https://github.com/chatterlinx/penguin-ai-agent#readme",
-  "description": "",
   "dependencies": {
     "express": "^4.18.2"
   }
