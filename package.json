@@ -8,5 +8,16 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chatterlinx/penguin-ai-agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chatterlinx/penguin-ai-agent/issues"
+  },
+  "homepage": "https://github.com/chatterlinx/penguin-ai-agent#readme",
+  "description": "",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
 }
