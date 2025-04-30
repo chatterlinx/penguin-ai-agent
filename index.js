@@ -3,6 +3,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const triggers = [
   {
@@ -53,15 +54,36 @@ app.get('/respond', (req, res) => {
   const reply = getResponse(message);
   res.json({ reply });
 });
-app.post('/brain', express.urlencoded({ extended: true }), (req, res) => {
+
+app.post('/brain', (req, res) => {
   const input = req.body.SpeechResult || '';
   const twiml = [];
+
+  if (!req.sessionMemory) req.sessionMemory = {}; // Basic session memory
+  const memory = req.sessionMemory;
+
+  let reply = "";
 
   if (!input) {
     twiml.push('<Say voice="Polly.Matthew">Still here, take your time.</Say>');
     twiml.push('<Redirect>/brain</Redirect>');
   } else {
-    const reply = getResponse(input); // use same logic from /respond
+    if (!memory.issue) {
+      memory.issue = input;
+      reply = "Thanks for explaining. May I have your full name?";
+    } else if (!memory.name) {
+      memory.name = input;
+      reply = "Thanks. What's your full address?";
+    } else if (!memory.address) {
+      memory.address = input;
+      reply = "Got it. What’s the best phone number to receive text alerts?";
+    } else if (!memory.phone) {
+      memory.phone = input;
+      reply = "Last question — is this a repair or maintenance call?";
+    } else {
+      reply = "Thank you! A technician will contact you shortly.";
+    }
+
     twiml.push('<Say voice="Polly.Matthew">One moment please.</Say>');
     twiml.push(`<Gather input="speech" action="/brain" method="POST" timeout="15"><Say voice="Polly.Matthew">${reply}</Say></Gather>`);
     twiml.push('<Say voice="Polly.Matthew">Still here, take your time.</Say>');
