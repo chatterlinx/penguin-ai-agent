@@ -53,6 +53,24 @@ app.get('/respond', (req, res) => {
   const reply = getResponse(message);
   res.json({ reply });
 });
+app.post('/brain', express.urlencoded({ extended: true }), (req, res) => {
+  const input = req.body.SpeechResult || '';
+  const twiml = [];
+
+  if (!input) {
+    twiml.push('<Say voice="Polly.Matthew">Still here, take your time.</Say>');
+    twiml.push('<Redirect>/brain</Redirect>');
+  } else {
+    const reply = getResponse(input); // use same logic from /respond
+    twiml.push('<Say voice="Polly.Matthew">One moment please.</Say>');
+    twiml.push(`<Gather input="speech" action="/brain" method="POST" timeout="15"><Say voice="Polly.Matthew">${reply}</Say></Gather>`);
+    twiml.push('<Say voice="Polly.Matthew">Still here, take your time.</Say>');
+    twiml.push('<Redirect>/brain</Redirect>');
+  }
+
+  res.set('Content-Type', 'text/xml');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${twiml.join('')}</Response>`);
+});
 
 app.listen(port, () => {
   console.log(`Agent listening on port ${port}`);
