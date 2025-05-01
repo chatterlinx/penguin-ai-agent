@@ -57,22 +57,32 @@ app.get('/respond', (req, res) => {
 
 app.post('/brain', (req, res) => {
   const input = req.body.SpeechResult || '';
-  console.log('Received SpeechResult:', input); // Log for debugging
+  const loopCount = parseInt(req.query.loop || '0');
+  const nextLoop = loopCount + 1;
 
-  const reply = getResponse(input);
+  let reply = '';
+  if (!input) {
+    reply = "Still here, take your time.";
+  } else {
+    reply = getResponse(input);
+  }
 
-  const twiml = `<?xml version="1.0" encoding="UTF-8"?>
-    <Response>
-      <Say voice="Polly.Matthew">One moment please.</Say>
-      <Gather input="speech" action="https://penguin-ai-agent-1.onrender.com/brain" method="POST" timeout="15">
-        <Say voice="Polly.Matthew">${reply}</Say>
-      </Gather>
-      <Say voice="Polly.Matthew">Still here, take your time.</Say>
-      <Redirect method="POST">https://aichatclients.com/voice-fallback.php</Redirect>
-    </Response>`;
+  const twiml = [];
+  twiml.push('<Say voice="Polly.Matthew">One moment please.</Say>');
+  twiml.push(`<Gather input="speech" action="https://penguin-ai-agent-1.onrender.com/brain?loop=${nextLoop}" method="POST" timeout="15">`);
+  twiml.push(`<Say voice="Polly.Matthew">${reply}</Say>`);
+  twiml.push('</Gather>');
+
+  if (loopCount >= 2) {
+    twiml.push('<Say voice="Polly.Matthew">Thanks again for calling. We’ll be here when you’re ready. Goodbye!</Say>');
+    twiml.push('<Hangup/>');
+  } else {
+    twiml.push('<Say voice="Polly.Matthew">Still here, take your time.</Say>');
+    twiml.push(`<Redirect method="POST">https://penguin-ai-agent-1.onrender.com/brain?loop=${nextLoop}</Redirect>`);
+  }
 
   res.set('Content-Type', 'text/xml');
-  res.send(twiml);
+  res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${twiml.join('')}</Response>`);
 });
 
 app.listen(port, () => {
