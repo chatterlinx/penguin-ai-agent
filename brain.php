@@ -2,73 +2,64 @@
 header("Content-Type: text/xml");
 session_start();
 
-// Absolute URL for Render fallback
-$brainUrl = "https://penguin-ai-agent-1.onrender.com/brain";
-
-// Initialize session memory
-if (!isset($_SESSION['memory'])) {
-    $_SESSION['memory'] = [
-        'issue' => '',
-        'name' => '',
-        'address' => '',
-        'phone' => '',
-        'service_type' => ''
-    ];
+if (!isset($_SESSION['step'])) {
+    $_SESSION['step'] = 0;
+    $_SESSION['memory'] = [];
 }
 
-$customer_input = $_POST['SpeechResult'] ?? '';
-
-if (empty($customer_input)) {
-    echo '<?xml version="1.0" encoding="UTF-8"?>';
-    ?>
-    <Response>
-        <Say voice="Polly.Matthew">Still here, take your time.</Say>
-        <Redirect method="POST"><?= $brainUrl ?></Redirect>
-    </Response>
-    <?php
-    exit;
-}
-
-// Assign memory
+$input = $_POST['SpeechResult'] ?? '';
+$step = &$_SESSION['step'];
 $memory = &$_SESSION['memory'];
 $reply = '';
 
-if (empty($memory['issue'])) {
-    $memory['issue'] = $customer_input;
-    $reply = "Thanks for explaining. May I have your full name?";
-} elseif (empty($memory['name'])) {
-    $memory['name'] = $customer_input;
-    $reply = "Thanks. What's your full address?";
-} elseif (empty($memory['address'])) {
-    $memory['address'] = $customer_input;
-    $reply = "Got it. What’s the best phone number to receive text alerts?";
-} elseif (empty($memory['phone'])) {
-    if (!preg_match('/^\d{10,}$/', preg_replace('/\D/', '', $customer_input))) {
-        $reply = "Please provide a valid phone number with at least 10 digits.";
-    } else {
-        $memory['phone'] = $customer_input;
-        $reply = "Last question — is this a repair or a maintenance call?";
-    }
-} elseif (empty($memory['service_type'])) {
-    $memory['service_type'] = $customer_input;
-    $reply = "Thank you! You're all set. A technician will reach out to confirm.";
+if (empty($input)) {
+    $reply = "I'm still here. Take your time. When you're ready, just speak.";
 } else {
-    $reply = "You're all set! Have a great day.";
-    $should_hangup = true;
+    switch ($step) {
+        case 0:
+            $memory['issue'] = $input;
+            $reply = "Thanks. May I have your full name, please?";
+            $step++;
+            break;
+        case 1:
+            $memory['name'] = $input;
+            $reply = "Got it. What’s your full service address, including unit number if any?";
+            $step++;
+            break;
+        case 2:
+            $memory['address'] = $input;
+            $reply = "Thank you. What's the best cell phone number to reach you with technician updates?";
+            $step++;
+            break;
+        case 3:
+            if (!preg_match('/\d{10}/', preg_replace('/\D/', '', $input))) {
+                $reply = "Sorry, I didn’t catch a valid phone number. Please say it again using digits only.";
+                break;
+            }
+            $memory['phone'] = $input;
+            $reply = "Lastly, is this for a repair service or a maintenance tune-up?";
+            $step++;
+            break;
+        case 4:
+            $memory['service_type'] = $input;
+            $reply = "Thanks. You're all set. A technician will follow up shortly.";
+            file_put_contents("requests.log", json_encode($memory) . PHP_EOL, FILE_APPEND);
+            $step++;
+            break;
+        default:
+            echo '<?xml version="1.0" encoding="UTF-8"?>';
+            echo '<Response><Say voice="Polly.Matthew">Thank you. Goodbye.</Say><Hangup/></Response>';
+            exit;
+    }
 }
 
 echo '<?xml version="1.0" encoding="UTF-8"?>';
 ?>
 <Response>
-    <?php if (!empty($should_hangup)): ?>
-        <Say voice="Polly.Matthew"><?= htmlspecialchars($reply) ?></Say>
-        <Hangup/>
-    <?php else: ?>
-        <Say voice="Polly.Matthew">One moment please.</Say>
-        <Gather input="speech" action="<?= $brainUrl ?>" method="POST" timeout="15">
-            <Say voice="Polly.Matthew"><?= htmlspecialchars($reply) ?></Say>
-        </Gather>
-        <Say voice="Polly.Matthew">Still here, take your time.</Say>
-        <Redirect method="POST"><?= $brainUrl ?></Redirect>
-    <?php endif; ?>
+  <Say voice="Polly.Matthew">One moment please.</Say>
+  <Gather input="speech" action="https://penguin-ai-agent-1.onrender.com/brain" method="POST" timeout="10">
+    <Say voice="Polly.Matthew"><?php echo htmlspecialchars($reply); ?></Say>
+  </Gather>
+  <Say voice="Polly.Matthew">Still here, take your time.</Say>
+  <Redirect method="POST">https://penguin-ai-agent-1.onrender.com/brain</Redirect>
 </Response>
