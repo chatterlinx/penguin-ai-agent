@@ -57,16 +57,18 @@ app.get('/respond', (req, res) => {
 
 app.post('/brain', (req, res) => {
   const input = req.body.SpeechResult || '';
+  console.log('Received SpeechResult:', input); // Log for debugging
+
   const reply = getResponse(input);
 
   const twiml = `<?xml version="1.0" encoding="UTF-8"?>
     <Response>
       <Say voice="Polly.Matthew">One moment please.</Say>
-      <Gather input="speech" action="/brain" method="POST" timeout="15">
+      <Gather input="speech" action="https://penguin-ai-agent-1.onrender.com/brain" method="POST" timeout="15">
         <Say voice="Polly.Matthew">${reply}</Say>
       </Gather>
       <Say voice="Polly.Matthew">Still here, take your time.</Say>
-      <Redirect>/brain</Redirect>
+      <Redirect method="POST">https://aichatclients.com/voice-fallback.php</Redirect>
     </Response>`;
 
   res.set('Content-Type', 'text/xml');
