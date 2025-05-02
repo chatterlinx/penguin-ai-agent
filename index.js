@@ -1,11 +1,16 @@
+
 const express = require('express');
+const bodyParser = require('body-parser');
+const { Twilio } = require('twilio');
+const { MessagingResponse, VoiceResponse } = require('twilio').twiml;
+const axios = require('axios');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: false }));
 
-// Keyword triggers
+// Trigger logic
 const triggers = [
   {
     type: 'repair',
@@ -25,85 +30,79 @@ const triggers = [
   {
     type: 'emergency',
     keywords: ['emergency', 'urgent', 'asap', 'immediate help'],
-    response: "Just to confirm — would you like me to transfer you to our emergency dispatch team, or prefer the next available repair appointment?"
-  },
-  {
-    type: 'install',
-    keywords: ['new system', 'replacement', 'need estimate', 'install unit'],
-    response: "Got it — you’re looking for a new system estimate. Let’s get your info to our comfort advisor! May I have your full name and address?"
+    response: "Just to confirm — would you like me to transfer you to our emergency dispatch team?"
   }
 ];
 
-// Function to pick a response based on keywords
-function getResponse(text) {
-  text = text.toLowerCase();
-  for (const trigger of triggers) {
-    for (const keyword of trigger.keywords) {
-      if (text.includes(keyword)) {
-        return trigger.response;
-      }
+// Helper to match keywords
+function matchTrigger(text) {
+  const lower = text.toLowerCase();
+  for (const trig of triggers) {
+    if (trig.keywords.some(k => lower.includes(k))) {
+      return trig.response;
     }
   }
-  return "I'm here to help! May I please have your full name and a brief description of what you need today?";
+  return null;
 }
 
-// Homepage
-app.get('/', (req, res) => {
-  res.send('Penguin AI Agent is live!');
+// Voice Route
+app.post('/voice', (req, res) => {
+  const twiml = new VoiceResponse();
+
+  const gather = twiml.gather({
+    input: 'speech',
+    timeout: 5,
+    action: '/brain',
+    method: 'POST'
+  });
+  gather.say("Hi! Thanks for calling Penguin Air. How can I help you today?");
+
+  twiml.redirect('/voice'); // Fallback if no input
+
+  res.type('text/xml');
+  res.send(twiml.toString());
 });
 
-// Webhook for text-based keyword response testing
-app.get('/respond', (req, res) => {
-  const message = req.query.message || '';
-  const reply = getResponse(message);
-  res.json({ reply });
-});
+// Brain Route - Handles AI logic
+app.post('/brain', async (req, res) => {
+  const speech = req.body.SpeechResult || '';
+  const twiml = new VoiceResponse();
 
-// Twilio entry point
-app.get('/voice', (req, res) => {
-  res.set('Content-Type', 'text/xml');
-  res.send(`<?xml version="1.0" encoding="UTF-8"?>
-    <Response>
-      <Gather input="speech" action="https://penguin-ai-agent-1.onrender.com/brain" method="POST" timeout="15">
-        <Say voice="Polly.Matthew">Hi, Penguin Air Conditioning. How can I help you today?</Say>
-      </Gather>
-      <Say voice="Polly.Matthew">Still here, take your time.</Say>
-      <Redirect method="POST">https://penguin-ai-agent-1.onrender.com/brain</Redirect>
-    </Response>`);
-});
-
-// AI brain — handles customer speech, loops if silent
-app.post('/brain', (req, res) => {
-  const input = req.body.SpeechResult || '';
-  const loopCount = parseInt(req.query.loop || '0');
-  const nextLoop = loopCount + 1;
-
-  let reply = '';
-  if (!input) {
-    reply = "Still here, take your time.";
+  const matched = matchTrigger(speech);
+  if (matched) {
+    twiml.say(matched);
   } else {
-    reply = getResponse(input);
+    try {
+      const openaiResp = await axios.post('https://api.openai.com/v1/chat/completions', {
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: 'You are a friendly HVAC assistant.' },
+          { role: 'user', content: speech }
+        ]
+      }, {
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const aiReply = openaiResp.data.choices[0].message.content;
+      twiml.say(aiReply);
+    } catch (err) {
+      twiml.say("Sorry, I'm having trouble responding right now. Let me transfer you to a live advisor.");
+      twiml.dial('+1YOURBACKUPNUMBER'); // Replace with fallback number
+    }
   }
 
-  const twiml = [];
-  twiml.push('<Say voice="Polly.Matthew">One moment please.</Say>');
-  twiml.push(`<Gather input="speech" action="https://penguin-ai-agent-1.onrender.com/brain?loop=${nextLoop}" method="POST" timeout="15">`);
-  twiml.push(`<Say voice="Polly.Matthew">${reply}</Say>`);
-  twiml.push('</Gather>');
-
-  if (loopCount >= 2) {
-    twiml.push('<Say voice="Polly.Matthew">Thanks again for calling. We’ll be here when you’re ready. Goodbye!</Say>');
-    twiml.push('<Hangup/>');
-  } else {
-    twiml.push('<Say voice="Polly.Matthew">Still here, take your time.</Say>');
-    twiml.push(`<Redirect method="POST">https://penguin-ai-agent-1.onrender.com/brain?loop=${nextLoop}</Redirect>`);
-  }
-
-  res.set('Content-Type', 'text/xml');
-  res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${twiml.join('')}</Response>`);
+  res.type('text/xml');
+  res.send(twiml.toString());
 });
 
-// Start server
+// Ping route to keep alive
+app.get('/ping', (req, res) => {
+  res.send('Penguin AI Agent is running.');
+});
+
 app.listen(port, () => {
-  console.log(`Agent listening on port ${port}`);
+  console.log(`Server listening on port ${port}`);
 });
