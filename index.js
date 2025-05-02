@@ -1,14 +1,3 @@
-app.get('/voice', (req, res) => {
-  res.set('Content-Type', 'text/xml');
-  res.send(`<?xml version="1.0" encoding="UTF-8"?>
-    <Response>
-      <Gather input="speech" action="https://penguin-ai-agent-1.onrender.com/brain" method="POST" timeout="15">
-        <Say voice="Polly.Matthew">Hi, Penguin Air Conditioning. How can I help you today?</Say>
-      </Gather>
-      <Say voice="Polly.Matthew">Still here, take your time.</Say>
-      <Redirect method="POST">https://penguin-ai-agent-1.onrender.com/brain</Redirect>
-    </Response>`);
-});
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 3000;
@@ -64,6 +53,18 @@ app.get('/respond', (req, res) => {
   const message = req.query.message || '';
   const reply = getResponse(message);
   res.json({ reply });
+});
+
+app.get('/voice', (req, res) => {
+  res.set('Content-Type', 'text/xml');
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+    <Response>
+      <Gather input="speech" action="https://penguin-ai-agent-1.onrender.com/brain" method="POST" timeout="15">
+        <Say voice="Polly.Matthew">Hi, Penguin Air Conditioning. How can I help you today?</Say>
+      </Gather>
+      <Say voice="Polly.Matthew">Still here, take your time.</Say>
+      <Redirect method="POST">https://penguin-ai-agent-1.onrender.com/brain</Redirect>
+    </Response>`);
 });
 
 app.post('/brain', (req, res) => {
