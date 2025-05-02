@@ -5,6 +5,7 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Keyword triggers
 const triggers = [
   {
     type: 'repair',
@@ -33,6 +34,7 @@ const triggers = [
   }
 ];
 
+// Function to pick a response based on keywords
 function getResponse(text) {
   text = text.toLowerCase();
   for (const trigger of triggers) {
@@ -45,16 +47,19 @@ function getResponse(text) {
   return "I'm here to help! May I please have your full name and a brief description of what you need today?";
 }
 
+// Homepage
 app.get('/', (req, res) => {
   res.send('Penguin AI Agent is live!');
 });
 
+// Webhook for text-based keyword response testing
 app.get('/respond', (req, res) => {
   const message = req.query.message || '';
   const reply = getResponse(message);
   res.json({ reply });
 });
 
+// Twilio entry point
 app.get('/voice', (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send(`<?xml version="1.0" encoding="UTF-8"?>
@@ -67,6 +72,7 @@ app.get('/voice', (req, res) => {
     </Response>`);
 });
 
+// AI brain — handles customer speech, loops if silent
 app.post('/brain', (req, res) => {
   const input = req.body.SpeechResult || '';
   const loopCount = parseInt(req.query.loop || '0');
@@ -97,6 +103,7 @@ app.post('/brain', (req, res) => {
   res.send(`<?xml version="1.0" encoding="UTF-8"?><Response>${twiml.join('')}</Response>`);
 });
 
+// Start server
 app.listen(port, () => {
   console.log(`Agent listening on port ${port}`);
 });
